@@ -1,0 +1,10 @@
+project_id = "yotjmrfkqgigsmykiuea"
+
+[functions.experiences]
+verify_jwt = false
+
+[functions.bookings]
+verify_jwt = false
+
+[functions.promo-validate]
+verify_jwt = false
