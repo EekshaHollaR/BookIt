@@ -1,7 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Experience, BookingDetails } from "@/types/experience";
 
-const FUNCTION_URL = import.meta.env.VITE_SUPABASE_URL;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
 
 export const api = {
   // Fetch all experiences
