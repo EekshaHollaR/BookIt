@@ -1,67 +1,40 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+// supabase/functions/promo-validate/index.ts
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Content-Type': 'application/json',
-};
+const supabase = createClient(
+  Deno.env.get("SUPABASE_URL")!,
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+);
 
-Deno.serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+serve(async (req) => {
+  if (req.method !== "POST") {
+    return new Response("Only POST allowed", { status: 405 });
   }
 
-  if (req.method !== 'POST') {
-    return new Response(
-      JSON.stringify({ error: 'Method not allowed' }),
-      { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+  const { promoCode } = await req.json();
+  if (!promoCode) {
+    return new Response(JSON.stringify({ error: "promoCode required" }), { status: 400 });
   }
 
-  try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+  const today = new Date().toISOString().split("T")[0];
 
-    const { code } = await req.json();
-    console.log('Validating promo code:', code);
+  const { data, error } = await supabase
+    .from("promotions")
+    .select("*")
+    .eq("promo_code", promoCode)
+    .lte("valid_from", today)
+    .gte("valid_to", today)
+    .maybeSingle();
 
-    if (!code) {
-      return new Response(
-        JSON.stringify({ valid: false, error: 'Promo code is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const { data: promo, error } = await supabase
-      .from('promo_codes')
-      .select('*')
-      .eq('code', code.toUpperCase())
-      .eq('active', true)
-      .single();
-
-    if (error || !promo) {
-      console.log('Invalid promo code:', code);
-      return new Response(
-        JSON.stringify({ valid: false, error: 'Invalid promo code' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log('Valid promo code:', code, 'Discount:', promo.discount);
-    return new Response(
-      JSON.stringify({ valid: true, discount: promo.discount }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-
-  } catch (error: any) {
-    console.error('Error in promo-validate function:', error);
-    return new Response(
-      JSON.stringify({ valid: false, error: error.message || 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+  if (error || !data) {
+    return new Response(JSON.stringify({ valid: false, error: "Invalid or expired promo code" }), {
+      headers: { "Content-Type": "application/json" },
+      status: 404,
+    });
   }
+
+  return new Response(JSON.stringify({ valid: true, discount: data.discount_percent }), {
+    headers: { "Content-Type": "application/json" },
+  });
 });

@@ -24,7 +24,7 @@ const Confirmation = () => {
           Ref ID: <span className="font-semibold">{bookingRef}</span>
         </p>
 
-        <Button size="lg" onClick={() => navigate("/")}>
+        <Button size="lg"z onClick={() => navigate("/")}>
           Back to Home
         </Button>
       </main>
